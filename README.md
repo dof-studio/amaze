@@ -14,6 +14,12 @@ In the current version, you are expected to have a GUI like this:
 We distribute this game fully in a `source code` version. Please see the `src` folder to get the source code of the game and run it.
 
 
+# Some instructions
+- To help `Kana` move, drag her or click a near position that you expect her to move.
+- By default, the flood will start to spead 5 seconds from the beginning of each round.
+- By the exit block, you should drag `Kana` toward the exit block shown in red.
+
+
 # Share your save
 We welcome everyone share their interesting save to this repository. All available Game Saves are included in the `sav` folder. How many rounds can you keep `Kana` survive?
 
