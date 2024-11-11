@@ -1,5 +1,5 @@
 # Game mazeme
-A maze game with flooding running after the girl `Kana`. Please help her to move to the exit of this maze before flood comes.
+A maze game with flooding running after the girl `Kana`. Please help her to move to the exit of the maze before flood comes. Can you let her live longer and longer?
 
 
 # Version
