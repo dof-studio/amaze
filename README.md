@@ -5,7 +5,7 @@ A maze game with flooding running after the girl `Kana`. Please help her to move
 # Version
 Current version `v20241111`
 
-In the current version, you are expected to have a GUI like this:
+In the current version, you are expected to see a GUI like this:
 
 ![image](https://github.com/user-attachments/assets/d8b0135a-6a32-46ae-a2c1-1a711a4390ab)
 
@@ -18,6 +18,10 @@ We distribute this game fully in a `source code` version. Please see the `src` f
 - To help `Kana` move, drag her or click a near position that you expect her to move.
 - By default, the flood will start to spead 5 seconds from the beginning of each round.
 - By the exit block, you should drag `Kana` toward the exit block shown in red.
+
+
+# Welcome any contributions
+This game is for fun. But we are happy for any recommendations, bug reports, and contributions to make it more interesting.
 
 
 # Share your save
