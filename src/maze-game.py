@@ -1,6 +1,6 @@
 '''
 Floating Maze
-Version 20241110
+Version 20241111
 Copyright: DOF Studio
 '''
 
@@ -53,7 +53,6 @@ SILVER = (192, 192, 192)
 MAROON = (128, 0, 0)
 NAVY = (0, 0, 128)
 
-
 # Global variables for customization and timing
 custom_player_default = "./res/res.ch.png"
 custom_background_default = "./res/res.bk.png"
@@ -67,10 +66,13 @@ difficulty_level = DEFAULT_DIFFICULTY
 # Constants for water spread
 WATER_SPREAD_DELAY = 5           # Delay for 5 seconds
 WATER_SPREAD_RATE_NORMAL = 6     # Spread rate for non-downward paths (cells per second)
-WATER_SPREAD_RATE_DOWNWARD = 10  # Spread rate for downward paths (cells per second)
+WATER_SPREAD_RATE_DOWNWARD = 14  # Spread rate for downward paths (cells per second)
 
 # Initialize the water queue
 water_queue = deque()
+
+# Initialize global resume (True to pause, False to resume)
+resume_play = False
 
 # Load Default resources
 if custom_player_default != None:
@@ -86,12 +88,29 @@ class Timer:
         self.last_time = time.time()
         self.delta_time = 0.0
         self.total_time = 0.0
+        self.is_paused_ = False
+        self.pause_start_time = 0.0
 
     def update(self):
-        current_time = time.time()
-        self.delta_time = current_time - self.last_time
-        self.total_time += self.delta_time
-        self.last_time = current_time
+        if not self.is_paused_:
+            current_time = time.time()
+            self.delta_time = current_time - self.last_time
+            self.total_time += self.delta_time
+            self.last_time = current_time
+
+    def pause(self):
+        if not self.is_paused_:
+            self.is_paused_ = True
+            self.pause_start_time = time.time()
+    
+    def is_paused(self):
+        return self.is_paused_
+
+    def resume(self):
+        if self.is_paused_:
+            self.is_paused_ = False
+            paused_duration = time.time() - self.pause_start_time
+            self.last_time += paused_duration  # Adjust `last_time` to exclude paused duration
 
     def get_delta_time(self):
         return self.delta_time
@@ -218,9 +237,14 @@ def create_button(screen, text, x, y, width, height, inactive_color, active_colo
 
 # Function to enter the setting screen
 def show_settings_screen(screen):
-    global TILE_SIZE, custom_player_image, custom_background_image, difficulty_level
+    global TILE_SIZE, resume_play, custom_player_image, custom_background_image, difficulty_level
     font = pygame.font.Font(None, 36)
     running = True
+    clock = pygame.time.Clock()
+    
+    # Resume it if not
+    if resume_play == False:
+        resume_play = True
 
     while running:
         screen.fill(WHITE)
@@ -286,6 +310,10 @@ def show_settings_screen(screen):
                     running = False  # Exit the settings screen
 
         pygame.display.flip()
+        clock.tick(FPS)
+        
+    # Resume false, restart game now
+    resume_play = False
 
 # Function to initialize water grid
 def initialize_water_grid(width, height):
@@ -519,6 +547,12 @@ def adjust_move_range(maze, player_pos):
 
 # Save game state to a JSON file, including the maze structure and other data
 def save_game_state(player_pos, maze, seed, start_time, difficulty, water_grid, water_queue, water_parameters):
+    global resume_play
+    
+    # Resume it if not
+    if resume_play == False:
+        resume_play = True
+    
     current_time = time.time() - start_time
     game_state = {
         "player_pos": player_pos,
@@ -540,9 +574,18 @@ def save_game_state(player_pos, maze, seed, start_time, difficulty, water_grid, 
         with open(save_path, "w") as file:
             json.dump(game_state, file)
         show_notification(screen, "Game saved successfully!", 1500)
+        
+    # Resume false, restart game now
+    resume_play = False
 
 # Load game state from a custom location, ensuring the same maze structure is loaded
 def load_game_state():
+    global resume_play
+    
+    # Resume it if not
+    if resume_play == False:
+        resume_play = True
+    
     # Open a file dialog to choose the file to load
     load_path = filedialog.askopenfilename(
         filetypes=[("JSON files", "*.json")],
@@ -564,10 +607,18 @@ def load_game_state():
             )
         except (FileNotFoundError, json.JSONDecodeError):
             show_notification(screen, "Failed to load the game. Invalid file or format.", 1500)
+            # Resume false, restart game now
+            resume_play = False
             return None
     else:
         show_notification(screen, "Loading canceled.", 1500)
+        # Resume false, restart game now
+        resume_play = False
         return None
+    
+    # Resume false, restart game now
+    resume_play = False
+    
 
 # Show notification in game
 def show_notification(screen, message, duration=1500):
@@ -620,9 +671,10 @@ def water_speed_schedule(water_parameters, round_num):
     return water_parameters
     
 # Main function to play the game
-def play_maze(maze_width, maze_height, move_range, seed=None):
-    global TILE_SIZE, water_grid, start_time, difficulty_level
-    start_time = time.time()
+def play_maze(maze_width, maze_height, move_range, seed=None, *, loaded_data=None):
+    global TILE_SIZE, resume_play, water_grid, start_time, difficulty_level
+    accumulate_time = time.time()  # acuumulate time
+    start_time = time.time()       # round start time
     round_count = 0
     
     while True:  # Loop to automatically transition to the next game after winning
@@ -631,13 +683,18 @@ def play_maze(maze_width, maze_height, move_range, seed=None):
             
         # Accumulate the round 
         round_count += 1
-
+        
+        # Reset start_time
+        start_time = time.time()
+        
+        # Generate maze
         maze = generate_maze(maze_width, maze_height, seed, difficulty_level)
         screen_width = maze_width * TILE_SIZE
         screen_height = maze_height * TILE_SIZE + 60  # Additional space for buttons
         screen = pygame.display.set_mode((screen_width, screen_height))
         pygame.display.set_caption("Maze Game with Enhanced Features")
-
+        
+        # Clock and other parameters
         clock = pygame.time.Clock()
         player_pos = [1, 1]
         end_pos = (maze_width - 2, maze_height - 2)
@@ -649,30 +706,69 @@ def play_maze(maze_width, maze_height, move_range, seed=None):
         water_queue = deque()
         water_parameters = {'elapsed': 0, 
                             'normal' : WATER_SPREAD_RATE_NORMAL,
-                            'downward': WATER_SPREAD_RATE_DOWNWARD}
+                            'downward': WATER_SPREAD_RATE_DOWNWARD,
+                            'round_count': round_count}
         water_parameters = water_speed_schedule(water_parameters, round_count)
         water_initial_place = (1, 1)
         
         # Initialize the global timer
         global_timer = Timer()
+        global_timer.update()
+        
+        # If loaded_data is not None, meaning having loaded from the welcome page
+        if loaded_data is not None:
+            if resume_play != False:
+                resume_play = False
             
         running = True
         while running:
+            
+            # If global resume_play is on, skip the following 
+            if resume_play == True:
+                # If not paused, pause the global_timer
+                if global_timer.is_paused() == False:
+                    global_timer.pause()
+                
+                # Pause to achieve 60 FPS
+                clock.tick(FPS)
+                next     
+            else:
+                # If it is paused, resume it
+                if global_timer.is_paused() == True:
+                    global_timer.resume()
+            
             # Update water spread
             global_timer.update()
             delta_time = global_timer.get_delta_time()
             water_time += delta_time
+            
             # This is the delayed water appearance
             if water_time > WATER_SPREAD_DELAY:
                 if len(water_queue) == 0:
                     initialize_water(water_grid, water_queue, water_initial_place)
                 else:
                     update_water(maze, water_grid, water_queue, delta_time, water_parameters)
-
+            
+            # Handling loaded_data passed in
+            if loaded_data:
+                player_pos, maze, current_seed, elapsed_time, loaded_difficulty, loaded_water_grid, loaded_water_queue, loaded_water_parameters = loaded_data
+                difficulty_level = loaded_difficulty
+                start_time = time.time() - elapsed_time  # Resume the saved time
+                # Reinitialize water structures based on loaded maze
+                water_grid = loaded_water_grid
+                water_queue = loaded_water_queue
+                water_parameters = loaded_water_parameters
+                round_count = water_parameters['round_count']
+                # Change the water_time as the elapsed_time
+                water_time = water_time + elapsed_time
+                # Restore
+                loaded_data = None
+            
+            # Draw maze
             move_range = adjust_move_range(maze, player_pos)
             screen.fill(WHITE)
             draw_maze(screen, maze, water_grid=water_grid, path = None) # do not provide navigation now
-
+            
             # Draw the save, load, and settings buttons
             save_button_rect = pygame.Rect(10, screen_height - 50, 80, 40)
             load_button_rect = pygame.Rect(100, screen_height - 50, 80, 40)
@@ -700,10 +796,16 @@ def play_maze(maze_width, maze_height, move_range, seed=None):
 
                    # Check if the save button is clicked
                     if save_button_rect.collidepoint(mouse_x, mouse_y):
+                        # Resume and save
+                        resume_play = True
+                        global_timer.pause()
                         save_game_state(player_pos, maze, seed, start_time, difficulty_level, water_grid, water_queue, water_parameters)
                 
                     # Check if the load button is clicked
                     elif load_button_rect.collidepoint(mouse_x, mouse_y):
+                        # Resume and load
+                        resume_play = True
+                        global_timer.pause()
                         loaded_data = load_game_state()
                         if loaded_data:
                             player_pos, maze, current_seed, elapsed_time, loaded_difficulty, loaded_water_grid, loaded_water_queue, loaded_water_parameters = loaded_data
@@ -713,10 +815,18 @@ def play_maze(maze_width, maze_height, move_range, seed=None):
                             water_grid = loaded_water_grid
                             water_queue = loaded_water_queue
                             water_parameters = loaded_water_parameters
+                            round_count = water_parameters['round_count']
+                            # Change the water_time as the elapsed_time
+                            water_time = water_time + elapsed_time
+                            # Restore
+                            loaded_data = None
                             break  # Reload the maze with loaded data
 
                     # Check if the settings button is clicked
                     elif settings_button_rect.collidepoint(mouse_x, mouse_y):
+                        # Resume and setting
+                        resume_play = True
+                        global_timer.pause()
                         show_settings_screen(screen)  # Open the settings screen
 
                     else:
@@ -765,11 +875,15 @@ def play_maze(maze_width, maze_height, move_range, seed=None):
                 round_count = 0  # Reset Round Counter
                 running = False  # End the current game
 
-
+            # Display change
             pygame.display.flip()
+            # Pause to achieve 60 FPS
+            clock.tick(FPS)
 
 # Welcome screen with buttons and input prompts
 def show_welcome_screen(screen):
+    global resume_play
+    
     font = pygame.font.Font(None, 48)
     screen.fill(WHITE)
     if custom_background_image:
@@ -781,6 +895,8 @@ def show_welcome_screen(screen):
     start_button_rect = pygame.Rect(50, 150, 200, 50)
     settings_button_rect = pygame.Rect(50, 220, 200, 50)
     load_button_rect = pygame.Rect(50, 290, 200, 50)
+    
+    clock = pygame.time.Clock()
 
     while True:
         screen.fill(WHITE)
@@ -813,13 +929,18 @@ def show_welcome_screen(screen):
                 elif load_button_rect.collidepoint(mouse_x, mouse_y):
                     loaded_data = load_game_state()
                     if loaded_data:
-                        player_pos, maze, current_seed, elapsed_time, loaded_difficulty = loaded_data
-                        difficulty_level = loaded_difficulty
-                        play_maze(len(maze[0]), len(maze), DEFAULT_MOVE_RANGE, current_seed)
+                        # Resume and load
+                        resume_play = True
+                        # Try to unpack
+                        player_pos, maze, current_seed, elapsed_time, loaded_difficulty, loaded_water_grid, loaded_water_queue, loaded_water_parameters = loaded_data
+                        # Pass in the loaded data
+                        play_maze(len(maze[0]), len(maze), DEFAULT_MOVE_RANGE, current_seed,
+                                  loaded_data=loaded_data)
                     else:
                         show_notification(screen, "No saved game found!", 1500)
 
         pygame.display.flip()
+        clock.tick(FPS)
 
 # Run the game
 screen = pygame.display.set_mode((960, 640))  # Increased resolution for better GUI
