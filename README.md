@@ -3,7 +3,7 @@ A maze game with flooding running after the girl `Kana`. Please help her to move
 
 
 # Version
-Current version v20241111
+Current version `v20241111`
 
 In the current version, you are expected to have a GUI like this:
 
