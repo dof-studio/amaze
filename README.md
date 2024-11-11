@@ -1,5 +1,10 @@
 # Game mazeme
-A maze game with flooding running after you.
+A maze game with flooding running after the girl `Kana`. Please help her to move to the exit of this maze before flood comes.
+
+In the current version, you are expected to have a GUI like this:
+
+![image](https://github.com/user-attachments/assets/d8b0135a-6a32-46ae-a2c1-1a711a4390ab)
+
 
 # Version
 Current version v20241111
