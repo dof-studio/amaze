@@ -15,7 +15,7 @@ We distribute this game fully in a `source code` version. Please see the `src` f
 
 
 # Share your save
-We welcome everyone share their interesting save to this repository. All available Game Saves are included in the `sav` folder. How many rounds can you make `Kana` survive?
+We welcome everyone share their interesting save to this repository. All available Game Saves are included in the `sav` folder. How many rounds can you keep `Kana` survive?
 
 
 # Claim
